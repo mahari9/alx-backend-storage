@@ -1,54 +1,34 @@
 #!/usr/bin/env python3
-"""
-Module to provide a cache decorator for web page retrieval.
-"""
-
-import requests
+"""Module containing function to return HTML content of a particular URL"""
 import redis
-from typing import Callable
+import requests
+from functools import wraps
 
-redis_client = redis.Redis()
+data = redis.Redis()
 
 
-def cache_decorator(func: Callable) -> Callable:
-    """
-    Decorator to cache the result of a function
-    with a specified expiration time.
-    """
-    def wrapper(*args, **kwargs):
-        """
-        Generate a cache key based on the function name and arguments
-        """
-        cache_key = f"cache:{func.__name__}:{args}"
+def cached_content_fun(method):
+    """Function that returns html content"""
 
-        cached_result = redis_client.get(cache_key)
-        if cached_result:
-            return cached_result.decode('utf-8')
+    @wraps(method)
+    def wrapper(url: str):
+        cached_content = data.get(f"cached:{url}")
+        if cached_content:
+            return cached_content.decode('utf-8')
 
-        result = func(*args, **kwargs)
-
-        redis_client.setex(cache_key, 10, result)
-
-        return result
+        content = method(url)
+        data.setex(f"cached:{url}", 10, content)
+        return content
 
     return wrapper
 
 
-@cache_decorator
+@cached_content_fun
 def get_page(url: str) -> str:
-    """
-    Get the HTML content of a particular URL
-    and cache the result with an expiration time of 10 seconds.
-    """
-    redis_client.incr(f"count:{url}")
+    """Function thattracks how many times a particular URL was accessed"""
 
-    cached_data = redis_client.get(url)
-    if cached_data:
-        return cached_data.decode('utf-8')
-
-    response = requests.get(url)
-    html_content = response.text
-
-    redis_client.setex(url, 10, html_content)
-
-    return html_content
+    count = data.incr(f"count:{url}")
+    content = requests.get(url).text
+    # print(content)
+    # print("Count: {}".format(count))
+    return content
