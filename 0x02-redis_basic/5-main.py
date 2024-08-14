@@ -9,7 +9,7 @@ redis_store = redis.Redis()
 
 if __name__ == "__main__":
     # Example usage:
-    url = "https://redis-py.readthedocs.io/"
+    url = "http://slowwly.robertomurray.co.uk"
     html_content = get_page(url)
     print(f"Content for {url}:\n{html_content}\n")
     
