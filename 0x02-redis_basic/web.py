@@ -7,7 +7,7 @@ from functools import wraps
 from typing import Callable
 
 
-redis_store = redis.Redis()
+redis_store = redis.Redis(host='localhost', port=6379, db=0)
 """The module-level Redis instance."""
 
 
