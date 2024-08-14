@@ -1,40 +1,54 @@
 #!/usr/bin/env python3
 """
-Caching request module
+Module to provide a cache decorator for web page retrieval.
 """
-import redis
+
 import requests
-from functools import wraps
+import redis
 from typing import Callable
 
+redis_client = redis.Redis()
 
-def track_get_page(fn: Callable) -> Callable:
-    """ Decorator for get_page
+
+def cache_decorator(func: Callable) -> Callable:
     """
-    @wraps(fn)
-    def wrapper(url: str) -> str:
-        """ Wrapper that:
-            - check whether a url's data is cached
-            - tracks how many times get_page is called
+    Decorator to cache the result of a function
+    with a specified expiration time.
+    """
+    def wrapper(*args, **kwargs):
         """
-        client = redis.Redis()
-        client.incr(f'count:{url}')
-        cached_page = client.get(f'{url}')
-        if cached_page:
-            return cached_page.decode('utf-8')
-        response = fn(url)
-        client.set(f'{url}', response, 10)
-        return response
+        Generate a cache key based on the function name and arguments
+        """
+        cache_key = f"cache:{func.__name__}:{args}"
+
+        cached_result = redis_client.get(cache_key)
+        if cached_result:
+            return cached_result.decode('utf-8')
+
+        result = func(*args, **kwargs)
+
+        redis_client.setex(cache_key, 10, result)
+
+        return result
+
     return wrapper
 
 
-@track_get_page
+@cache_decorator
 def get_page(url: str) -> str:
-    """ Makes a http request to a given endpoint
     """
+    Get the HTML content of a particular URL
+    and cache the result with an expiration time of 10 seconds.
+    """
+    redis_client.incr(f"count:{url}")
+
+    cached_data = redis_client.get(url)
+    if cached_data:
+        return cached_data.decode('utf-8')
+
     response = requests.get(url)
-    return response.text
+    html_content = response.text
 
+    redis_client.setex(url, 10, html_content)
 
-if __name__ == "__main__":
-    get_page('http://slowwly.robertomurray.co.uk')
+    return html_content
