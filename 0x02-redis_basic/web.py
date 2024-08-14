@@ -1,34 +1,40 @@
 #!/usr/bin/env python3
-"""Module containing function to return HTML content of a particular URL"""
+"""A module with tools for request caching and tracking."""
+
 import redis
 import requests
 from functools import wraps
 
-data = redis.Redis()
+r = redis.Redis()
 
 
-def cached_content_fun(method):
-    """Function that returns html content"""
-
+def url_access_count(method):
+    """decorator for get_page function"""
     @wraps(method)
-    def wrapper(url: str):
-        cached_content = data.get(f"cached:{url}")
-        if cached_content:
-            return cached_content.decode('utf-8')
+    def wrapper(url):
+        """wrapper function"""
+        key = "cached:" + url
+        cached_value = r.get(key)
+        if cached_value:
+            return cached_value.decode("utf-8")
 
-        content = method(url)
-        data.setex(f"cached:{url}", 10, content)
-        return content
+            # Get new content and update the cache
+        key_count = "count:" + url
+        html_content = method(url)
 
+        r.incr(key_count)
+        r.set(key, html_content, ex=10)
+        r.expire(key, 10)
+        return html_content
     return wrapper
 
 
-@cached_content_fun
+@url_access_count
 def get_page(url: str) -> str:
-    """Function thattracks how many times a particular URL was accessed"""
+    """obtain the HTML content of a particular"""
+    results = requests.get(url)
+    return results.text
 
-    count = data.incr(f"count:{url}")
-    content = requests.get(url).text
-    # print(content)
-    # print("Count: {}".format(count))
-    return content
+
+if __name__ == "__main__":
+    get_page('http://slowwly.robertomurray.co.uk')
