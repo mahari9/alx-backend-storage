@@ -16,20 +16,14 @@ def data_cacher(method: Callable) -> Callable:
     @wraps(method)
     def invoker(url) -> str:
         """The wrapper function for caching the output."""
-        redis_store.incr(f'count:{url}')
         result = redis_store.get(f'result:{url}')
         if result:
             return result.decode('utf-8')
         result = method(url)
         redis_store.setex(f'result:{url}', 10, result)
-        # Verify count increment
-        count = redis_store.get(f'count:{url}')
-        if count and int(count) > 0:
-            print(f"Count incremented successfully for {url}")
-        else:
-            print(f"Error incrementing count for {url}")
-
+        redis_store.incr(f"count:{url}")
         return result
+
     return invoker
 
 
