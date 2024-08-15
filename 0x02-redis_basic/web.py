@@ -21,7 +21,15 @@ def data_cacher(method: Callable) -> Callable:
         if result:
             return result.decode('utf-8')
         result = method(url)
-        redis_store.setex(f'result:{url}', 10, result)
+        redis_store.set(f'count:{url}', 0)
+        redis_store.setex(f'result:{url}', 60, result)
+        # Verify count increment
+        count = redis_store.get(f'count:{url}')
+        if count and int(count) > 0:
+            print(f"Count incremented successfully for {url}")
+        else:
+            print(f"Error incrementing count for {url}")
+
         return result
     return invoker
 
