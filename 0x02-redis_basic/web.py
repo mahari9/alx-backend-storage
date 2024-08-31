@@ -1,24 +1,38 @@
 #!/usr/bin/env python3
-'''A module with tools for request caching and tracking.
-'''
+"""A module with tools for request caching and tracking."""
+
 import redis
 import requests
-from datetime import timedelta
+from functools import wraps
+from typing import Callable
 
 
-def get_page(url: str) -> str:
-    '''Returns the content of a URL after caching the request's response,
-    and tracking the request.
-    '''
-    if url is None or len(url.strip()) == 0:
-        return ''
-    redis_store = redis.Redis()
-    res_key = 'result:{}'.format(url)
-    req_key = 'count:{}'.format(url)
-    result = redis_store.get(res_key)
-    if result is not None:
-        redis_store.incr(req_key)
+redis_store = redis.Redis()
+"""The module-level Redis instance."""
+
+
+def data_cacher(method: Callable) -> Callable:
+    """Caches the output of fetched data."""
+    @wraps(method)
+    def invoker(url) -> str:
+        """The wrapper function for caching the output."""
+        result = redis_store.get(f'result:{url}')
+        if result:
+            return result.decode('utf-8')
+        result = method(url)
+        redis_store.setex(f'result:{url}', 10, result)
+        redis_store.incr(f"count:{url}")
         return result
-    result = requests.get(url).content.decode('utf-8')
-    redis_store.setex(res_key, timedelta(seconds=10), result)
-    return result
+
+    return invoker
+
+
+@data_cacher
+def get_page(url: str) -> str:
+    """obtain the HTML content of a particular URL and returns it."""
+    return requests.get(url).text
+
+
+if __name__ == "__main__":
+    url = "http://google.com"
+    print(get_page(url))
