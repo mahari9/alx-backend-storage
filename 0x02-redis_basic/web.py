@@ -31,8 +31,3 @@ def data_cacher(method: Callable) -> Callable:
 def get_page(url: str) -> str:
     """obtain the HTML content of a particular URL and returns it."""
     return requests.get(url).text
-
-
-if __name__ == "__main__":
-    url = "http://google.com"
-    print(get_page(url))

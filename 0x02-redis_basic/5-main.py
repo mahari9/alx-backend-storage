@@ -16,5 +16,5 @@ if __name__ == "__main__":
     # You can access the access count from Redis if needed
     count_key = f"count:{url}"
     access_count = int(redis_store.get(count_key).decode())
-    print(f"Access count for {url}: {access_count}")
+    print(f"Access count for {url}: {access_count}: OK")
 
